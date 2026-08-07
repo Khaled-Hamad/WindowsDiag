@@ -183,7 +183,7 @@ function Find-JarvisMatches {
 
     $scored = foreach ($tool in $Tools) {
         $score = 0
-        if (($ProfileName -eq 'General' -and $terms.Count -eq 0 -and $tool.Area -eq 'General') -or
+        if (($ProfileName -eq 'General' -and $tool.Area -eq 'General') -or
             ($ProfileName -ne 'General' -and $tool.Area -eq $ProfileName)) {
             $score += 2
         }
@@ -360,11 +360,11 @@ function Start-JarvisInteractive {
     Write-Host 'Jarvis interactive diagnostic assistant. Type quit to exit.' -ForegroundColor Cyan
     while ($true) {
         $inputText = Read-Host 'Describe the symptom'
-        if ($inputText -match '^(quit|exit)$') {
+        if ($inputText -imatch '^(quit|exit)$') {
             break
         }
         $profileText = Read-Host 'Profile (General, Network, Domain, Performance, Security, Storage)'
-        if ($profileText -match '^(quit|exit)$') {
+        if ($profileText -imatch '^(quit|exit)$') {
             break
         }
         if (-not $profileText) {
