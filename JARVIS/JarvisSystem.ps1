@@ -326,7 +326,8 @@ function Export-JarvisPlan {
     }
 
     if ($extension -eq '.json') {
-        $Plan | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $Path -Encoding UTF8
+        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllText($Path, ($Plan | ConvertTo-Json -Depth 6), $utf8NoBom)
     }
     else {
         $lines = New-Object System.Collections.ArrayList
@@ -351,7 +352,8 @@ function Export-JarvisPlan {
                 [void]$lines.Add("  $($step.Command)")
             }
         }
-        $lines | Set-Content -LiteralPath $Path -Encoding UTF8
+        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllLines($Path, [string[]]$lines, $utf8NoBom)
     }
 }
 
@@ -377,9 +379,13 @@ function Start-JarvisInteractive {
         if (-not $profileText) {
             $profileText = 'General'
         }
-        if ($Profiles -notcontains $profileText) {
+        $canonicalProfile = @($Profiles | Where-Object { $_ -ieq $profileText } | Select-Object -First 1)
+        if ($canonicalProfile.Count -eq 0) {
             Write-Warning 'Unknown profile; using General.'
             $profileText = 'General'
+        }
+        else {
+            $profileText = $canonicalProfile[0]
         }
         $matchedTools = Find-JarvisMatches -Tools $Tools -SymptomText @($inputText) -ProfileName $profileText -Limit $Limit
         $plan = New-JarvisPlan -Matches $matchedTools -ProfileName $profileText -SymptomText @($inputText) -WithCommands:$WithCommands
