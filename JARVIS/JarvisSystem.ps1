@@ -201,14 +201,14 @@ function Find-JarvisMatches {
         }
     }
 
-    $matches = @($scored | Sort-Object -Property Score -Descending | Select-Object -First 5)
-    if ($matches.Count -eq 0) {
-        $matches = @($Tools | Where-Object { $_.Area -eq 'General' } | Select-Object -First 3 | ForEach-Object {
+    $matchedTools = @($scored | Sort-Object -Property Score -Descending | Select-Object -First 5)
+    if ($matchedTools.Count -eq 0) {
+        $matchedTools = @($Tools | Where-Object { $_.Area -eq 'General' } | Select-Object -First 3 | ForEach-Object {
             [pscustomobject]@{ Score = 1; Tool = $_ }
         })
     }
 
-    return $matches
+    return $matchedTools
 }
 
 function New-JarvisPlan {
@@ -344,7 +344,10 @@ function Export-JarvisPlan {
 }
 
 function Start-JarvisInteractive {
-    param([Parameter(Mandatory = $true)] [object[]]$Tools)
+    param(
+        [Parameter(Mandatory = $true)] [object[]]$Tools,
+        [switch]$WithCommands
+    )
 
     Write-Host 'Jarvis interactive diagnostic assistant. Type quit to exit.' -ForegroundColor Cyan
     while ($true) {
@@ -360,8 +363,8 @@ function Start-JarvisInteractive {
             Write-Warning 'Unknown profile; using General.'
             $profileText = 'General'
         }
-        $matches = Find-JarvisMatches -Tools $Tools -SymptomText @($inputText) -ProfileName $profileText
-        $plan = New-JarvisPlan -Matches $matches -ProfileName $profileText -SymptomText @($inputText) -WithCommands:$IncludeCommands
+        $matchedTools = Find-JarvisMatches -Tools $Tools -SymptomText @($inputText) -ProfileName $profileText
+        $plan = New-JarvisPlan -Matches $matchedTools -ProfileName $profileText -SymptomText @($inputText) -WithCommands:$WithCommands
         Write-JarvisPlan -Plan $plan
     }
 }
@@ -374,15 +377,15 @@ switch ($Mode) {
         $catalog | Sort-Object Area, Name | Select-Object Name, Area, Available, RequiresAdmin, RelativePath, UseCase | Format-Table -AutoSize
     }
     'Interactive' {
-        Start-JarvisInteractive -Tools $catalog
+        Start-JarvisInteractive -Tools $catalog -WithCommands:$IncludeCommands
     }
     default {
         $symptomsForPlan = @($Symptom)
         if ($symptomsForPlan.Count -eq 0) {
             $symptomsForPlan = @($Profile)
         }
-        $matches = Find-JarvisMatches -Tools $catalog -SymptomText $symptomsForPlan -ProfileName $Profile
-        $plan = New-JarvisPlan -Matches $matches -ProfileName $Profile -SymptomText $symptomsForPlan -WithCommands:$IncludeCommands
+        $matchedTools = Find-JarvisMatches -Tools $catalog -SymptomText $symptomsForPlan -ProfileName $Profile
+        $plan = New-JarvisPlan -Matches $matchedTools -ProfileName $Profile -SymptomText $symptomsForPlan -WithCommands:$IncludeCommands
         Write-JarvisPlan -Plan $plan
         if ($OutputPath) {
             Export-JarvisPlan -Plan $plan -Path $OutputPath
