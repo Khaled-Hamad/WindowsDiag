@@ -380,7 +380,13 @@ function Start-JarvisInteractive {
         if (-not $profileText) {
             $profileText = 'General'
         }
-        $canonicalProfile = $Profiles | Where-Object { $_ -ieq $profileText } | Select-Object -First 1
+        $canonicalProfile = $null
+        foreach ($candidateProfile in $Profiles) {
+            if ($candidateProfile -ieq $profileText) {
+                $canonicalProfile = $candidateProfile
+                break
+            }
+        }
         if ($null -eq $canonicalProfile) {
             Write-Warning 'Unknown profile; using General.'
             $profileText = 'General'
@@ -404,18 +410,12 @@ switch ($Mode) {
     'Interactive' {
         Start-JarvisInteractive -Tools $catalog -Profiles $JarvisProfiles -WithCommands:$IncludeCommands -Limit $MaxRecommendations
     }
-    'Analyze' {
+    { $_ -in @('Analyze', 'Plan') } {
         $symptomsForPlan = @($Symptom)
         $matchedTools = Find-JarvisMatches -Tools $catalog -SymptomText $symptomsForPlan -ProfileName $Profile -Limit $MaxRecommendations
         $plan = New-JarvisPlan -Matches $matchedTools -ProfileName $Profile -SymptomText $symptomsForPlan -WithCommands:$IncludeCommands
         Write-JarvisPlan -Plan $plan
-    }
-    'Plan' {
-        $symptomsForPlan = @($Symptom)
-        $matchedTools = Find-JarvisMatches -Tools $catalog -SymptomText $symptomsForPlan -ProfileName $Profile -Limit $MaxRecommendations
-        $plan = New-JarvisPlan -Matches $matchedTools -ProfileName $Profile -SymptomText $symptomsForPlan -WithCommands:$IncludeCommands
-        Write-JarvisPlan -Plan $plan
-        if ($OutputPath) {
+        if ($Mode -eq 'Plan' -and $OutputPath) {
             Export-JarvisPlan -Plan $plan -Path $OutputPath
             Write-Host "`nSaved plan to $OutputPath" -ForegroundColor Green
         }
