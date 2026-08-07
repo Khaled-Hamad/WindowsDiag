@@ -10,6 +10,7 @@ Run from a PowerShell prompt at the repository root or from this folder:
 .\JARVIS\JarvisSystem.ps1 -Mode Inventory
 .\JARVIS\JarvisSystem.ps1 -Profile Network -Symptom "lost static IP after reboot" -IncludeCommands
 .\JARVIS\JarvisSystem.ps1 -Profile Security -Symptom "Kerberos logon failures" -OutputPath .\jarvis-plan.json -IncludeCommands
+.\JARVIS\JarvisSystem.ps1 -Profile General -MaxRecommendations 3
 .\JARVIS\JarvisSystem.ps1 -Mode Interactive
 ```
 
@@ -23,6 +24,8 @@ Run from a PowerShell prompt at the repository root or from this folder:
 ## Profiles
 
 Supported profiles are `General`, `Network`, `Domain`, `Performance`, `Security`, and `Storage`. Jarvis combines the selected profile with symptom keywords to rank matching tools such as TSS, psSDP, CheckPCI, AD performance collection, authentication tracing, ChaseEvents, GetLogs, and MergeEvents.
+
+Use `-MaxRecommendations` to control how many ranked tools appear in the plan.
 
 ## Safety
 

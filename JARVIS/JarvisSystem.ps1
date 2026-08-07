@@ -10,7 +10,10 @@ param(
 
     [string]$OutputPath,
 
-    [switch]$IncludeCommands
+    [switch]$IncludeCommands,
+
+    [ValidateRange(1, 20)]
+    [int]$MaxRecommendations = 5
 )
 
 Set-StrictMode -Version 2.0
@@ -163,7 +166,9 @@ function Find-JarvisMatches {
         [Parameter(Mandatory = $true)]
         [object[]]$Tools,
         [string[]]$SymptomText,
-        [string]$ProfileName
+        [string]$ProfileName,
+        [ValidateRange(1, 20)]
+        [int]$Limit = 5
     )
 
     $terms = @()
@@ -178,7 +183,8 @@ function Find-JarvisMatches {
 
     $scored = foreach ($tool in $Tools) {
         $score = 0
-        if ($ProfileName -eq 'General' -or $tool.Area -eq $ProfileName) {
+        if (($ProfileName -eq 'General' -and $terms.Count -eq 0 -and $tool.Area -eq 'General') -or
+            ($ProfileName -ne 'General' -and $tool.Area -eq $ProfileName)) {
             $score += 2
         }
 
@@ -201,9 +207,9 @@ function Find-JarvisMatches {
         }
     }
 
-    $matchedTools = @($scored | Sort-Object -Property Score -Descending | Select-Object -First 5)
+    $matchedTools = @($scored | Sort-Object -Property Score -Descending | Select-Object -First $Limit)
     if ($matchedTools.Count -eq 0) {
-        $matchedTools = @($Tools | Where-Object { $_.Area -eq 'General' } | Select-Object -First 3 | ForEach-Object {
+        $matchedTools = @($Tools | Where-Object { $_.Area -eq 'General' } | Select-Object -First $Limit | ForEach-Object {
             [pscustomobject]@{ Score = 1; Tool = $_ }
         })
     }
@@ -346,7 +352,9 @@ function Export-JarvisPlan {
 function Start-JarvisInteractive {
     param(
         [Parameter(Mandatory = $true)] [object[]]$Tools,
-        [switch]$WithCommands
+        [switch]$WithCommands,
+        [ValidateRange(1, 20)]
+        [int]$Limit = 5
     )
 
     Write-Host 'Jarvis interactive diagnostic assistant. Type quit to exit.' -ForegroundColor Cyan
@@ -356,6 +364,9 @@ function Start-JarvisInteractive {
             break
         }
         $profileText = Read-Host 'Profile (General, Network, Domain, Performance, Security, Storage)'
+        if ($profileText -match '^(quit|exit)$') {
+            break
+        }
         if (-not $profileText) {
             $profileText = 'General'
         }
@@ -363,7 +374,7 @@ function Start-JarvisInteractive {
             Write-Warning 'Unknown profile; using General.'
             $profileText = 'General'
         }
-        $matchedTools = Find-JarvisMatches -Tools $Tools -SymptomText @($inputText) -ProfileName $profileText
+        $matchedTools = Find-JarvisMatches -Tools $Tools -SymptomText @($inputText) -ProfileName $profileText -Limit $Limit
         $plan = New-JarvisPlan -Matches $matchedTools -ProfileName $profileText -SymptomText @($inputText) -WithCommands:$WithCommands
         Write-JarvisPlan -Plan $plan
     }
@@ -377,14 +388,11 @@ switch ($Mode) {
         $catalog | Sort-Object Area, Name | Select-Object Name, Area, Available, RequiresAdmin, RelativePath, UseCase | Format-Table -AutoSize
     }
     'Interactive' {
-        Start-JarvisInteractive -Tools $catalog -WithCommands:$IncludeCommands
+        Start-JarvisInteractive -Tools $catalog -WithCommands:$IncludeCommands -Limit $MaxRecommendations
     }
     default {
         $symptomsForPlan = @($Symptom)
-        if ($symptomsForPlan.Count -eq 0) {
-            $symptomsForPlan = @($Profile)
-        }
-        $matchedTools = Find-JarvisMatches -Tools $catalog -SymptomText $symptomsForPlan -ProfileName $Profile
+        $matchedTools = Find-JarvisMatches -Tools $catalog -SymptomText $symptomsForPlan -ProfileName $Profile -Limit $MaxRecommendations
         $plan = New-JarvisPlan -Matches $matchedTools -ProfileName $Profile -SymptomText $symptomsForPlan -WithCommands:$IncludeCommands
         Write-JarvisPlan -Plan $plan
         if ($OutputPath) {
