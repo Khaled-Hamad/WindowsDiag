@@ -19,6 +19,7 @@ param(
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 $JarvisProfiles = @('General', 'Network', 'Domain', 'Performance', 'Security', 'Storage')
+$JarvisJsonDepth = 6
 
 function Get-JarvisRepositoryRoot {
     $current = Split-Path -Parent $PSCommandPath
@@ -328,7 +329,7 @@ function Export-JarvisPlan {
 
     if ($extension -eq '.json') {
         $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-        [System.IO.File]::WriteAllText($resolvedPath, ($Plan | ConvertTo-Json -Depth 6), $utf8NoBom)
+        [System.IO.File]::WriteAllText($resolvedPath, ($Plan | ConvertTo-Json -Depth $JarvisJsonDepth), $utf8NoBom)
     }
     else {
         $lines = New-Object System.Collections.ArrayList
@@ -389,13 +390,10 @@ function Start-JarvisInteractive {
         }
         if ($null -eq $canonicalProfile) {
             Write-Warning 'Unknown profile; using General.'
-            $profileText = 'General'
+            $canonicalProfile = 'General'
         }
-        else {
-            $profileText = $canonicalProfile
-        }
-        $matchedTools = Find-JarvisMatches -Tools $Tools -SymptomText @($inputText) -ProfileName $profileText -Limit $Limit
-        $plan = New-JarvisPlan -Matches $matchedTools -ProfileName $profileText -SymptomText @($inputText) -WithCommands:$WithCommands
+        $matchedTools = Find-JarvisMatches -Tools $Tools -SymptomText @($inputText) -ProfileName $canonicalProfile -Limit $Limit
+        $plan = New-JarvisPlan -Matches $matchedTools -ProfileName $canonicalProfile -SymptomText @($inputText) -WithCommands:$WithCommands
         Write-JarvisPlan -Plan $plan
     }
 }
@@ -415,6 +413,9 @@ switch ($Mode) {
         $matchedTools = Find-JarvisMatches -Tools $catalog -SymptomText $symptomsForPlan -ProfileName $Profile -Limit $MaxRecommendations
         $plan = New-JarvisPlan -Matches $matchedTools -ProfileName $Profile -SymptomText $symptomsForPlan -WithCommands:$IncludeCommands
         Write-JarvisPlan -Plan $plan
+        if ($Mode -eq 'Analyze' -and $OutputPath) {
+            Write-Warning '-OutputPath is only used in Plan mode; output was not saved.'
+        }
         if ($Mode -eq 'Plan' -and $OutputPath) {
             Export-JarvisPlan -Plan $plan -Path $OutputPath
             Write-Host "`nSaved plan to $OutputPath" -ForegroundColor Green
