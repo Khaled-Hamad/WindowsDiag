@@ -9,7 +9,7 @@ Run from a PowerShell prompt at the repository root or from this folder:
 ```powershell
 .\JARVIS\JarvisSystem.ps1 -Mode Inventory
 .\JARVIS\JarvisSystem.ps1 -Profile Network -Symptom "lost static IP after reboot" -IncludeCommands
-.\JARVIS\JarvisSystem.ps1 -Profile Security -Symptom "Kerberos logon failures" -OutputPath .\jarvis-plan.json -IncludeCommands
+.\JARVIS\JarvisSystem.ps1 -Mode Plan -Profile Security -Symptom "Kerberos logon failures" -OutputPath .\jarvis-plan.json -IncludeCommands
 .\JARVIS\JarvisSystem.ps1 -Profile General -MaxRecommendations 3
 .\JARVIS\JarvisSystem.ps1 -Mode Interactive
 ```
@@ -18,7 +18,7 @@ Run from a PowerShell prompt at the repository root or from this folder:
 
 - `Inventory`: lists known diagnostic tools and whether the referenced files are present.
 - `Analyze`: recommends tools for the selected profile and symptoms. This is the default mode.
-- `Plan`: same recommendation engine as `Analyze`, with optional export through `-OutputPath`.
+- `Plan`: uses the same recommendation engine as `Analyze` and can export through `-OutputPath`.
 - `Interactive`: prompts for symptoms repeatedly and prints recommendations.
 
 ## Profiles

@@ -324,10 +324,11 @@ function Export-JarvisPlan {
     if ($parent -and -not (Test-Path -LiteralPath $parent)) {
         New-Item -ItemType Directory -Path $parent -Force | Out-Null
     }
+    $resolvedPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
 
     if ($extension -eq '.json') {
         $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-        [System.IO.File]::WriteAllText($Path, ($Plan | ConvertTo-Json -Depth 6), $utf8NoBom)
+        [System.IO.File]::WriteAllText($resolvedPath, ($Plan | ConvertTo-Json -Depth 6), $utf8NoBom)
     }
     else {
         $lines = New-Object System.Collections.ArrayList
@@ -353,7 +354,7 @@ function Export-JarvisPlan {
             }
         }
         $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-        [System.IO.File]::WriteAllLines($Path, [string[]]$lines, $utf8NoBom)
+        [System.IO.File]::WriteAllLines($resolvedPath, [string[]]$lines, $utf8NoBom)
     }
 }
 
@@ -379,13 +380,13 @@ function Start-JarvisInteractive {
         if (-not $profileText) {
             $profileText = 'General'
         }
-        $canonicalProfile = @($Profiles | Where-Object { $_ -ieq $profileText } | Select-Object -First 1)
-        if ($canonicalProfile.Count -eq 0) {
+        $canonicalProfile = $Profiles | Where-Object { $_ -ieq $profileText } | Select-Object -First 1
+        if ($null -eq $canonicalProfile) {
             Write-Warning 'Unknown profile; using General.'
             $profileText = 'General'
         }
         else {
-            $profileText = $canonicalProfile[0]
+            $profileText = $canonicalProfile
         }
         $matchedTools = Find-JarvisMatches -Tools $Tools -SymptomText @($inputText) -ProfileName $profileText -Limit $Limit
         $plan = New-JarvisPlan -Matches $matchedTools -ProfileName $profileText -SymptomText @($inputText) -WithCommands:$WithCommands
@@ -403,7 +404,13 @@ switch ($Mode) {
     'Interactive' {
         Start-JarvisInteractive -Tools $catalog -Profiles $JarvisProfiles -WithCommands:$IncludeCommands -Limit $MaxRecommendations
     }
-    default {
+    'Analyze' {
+        $symptomsForPlan = @($Symptom)
+        $matchedTools = Find-JarvisMatches -Tools $catalog -SymptomText $symptomsForPlan -ProfileName $Profile -Limit $MaxRecommendations
+        $plan = New-JarvisPlan -Matches $matchedTools -ProfileName $Profile -SymptomText $symptomsForPlan -WithCommands:$IncludeCommands
+        Write-JarvisPlan -Plan $plan
+    }
+    'Plan' {
         $symptomsForPlan = @($Symptom)
         $matchedTools = Find-JarvisMatches -Tools $catalog -SymptomText $symptomsForPlan -ProfileName $Profile -Limit $MaxRecommendations
         $plan = New-JarvisPlan -Matches $matchedTools -ProfileName $Profile -SymptomText $symptomsForPlan -WithCommands:$IncludeCommands
