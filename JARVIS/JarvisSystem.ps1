@@ -5,6 +5,7 @@ param(
 
     [string[]]$Symptom = @(),
 
+    [ValidateSet('General', 'Network', 'Domain', 'Performance', 'Security', 'Storage')]
     [string]$Profile = 'General',
 
     [string]$OutputPath,
@@ -18,10 +19,6 @@ param(
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 $JarvisProfiles = @('General', 'Network', 'Domain', 'Performance', 'Security', 'Storage')
-
-if ($JarvisProfiles -notcontains $Profile) {
-    throw "Unsupported profile '$Profile'. Use one of: $($JarvisProfiles -join ', ')."
-}
 
 function Get-JarvisRepositoryRoot {
     $current = Split-Path -Parent $PSCommandPath
@@ -198,7 +195,8 @@ function Find-JarvisMatches {
 
         foreach ($term in $terms) {
             foreach ($signal in $tool.Signals) {
-                if ($term -like "*$($signal.ToLowerInvariant())*" -or $signal.ToLowerInvariant() -like "*$term*") {
+                $normalizedSignal = $signal.ToLowerInvariant()
+                if ($term -like "*$normalizedSignal*" -or $normalizedSignal -like "*$term*") {
                     $score += 4
                 }
             }
@@ -372,7 +370,7 @@ function Start-JarvisInteractive {
         if ($inputText -imatch '^(quit|exit)$') {
             break
         }
-        $profileText = Read-Host 'Profile (General, Network, Domain, Performance, Security, Storage)'
+        $profileText = Read-Host "Profile ($($Profiles -join ', '))"
         if ($profileText -imatch '^(quit|exit)$') {
             break
         }
