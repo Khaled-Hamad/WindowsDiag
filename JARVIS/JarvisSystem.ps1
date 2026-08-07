@@ -5,7 +5,6 @@ param(
 
     [string[]]$Symptom = @(),
 
-    [ValidateSet('General', 'Network', 'Domain', 'Performance', 'Security', 'Storage')]
     [string]$Profile = 'General',
 
     [string]$OutputPath,
@@ -18,6 +17,11 @@ param(
 
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
+$JarvisProfiles = @('General', 'Network', 'Domain', 'Performance', 'Security', 'Storage')
+
+if ($JarvisProfiles -notcontains $Profile) {
+    throw "Unsupported profile '$Profile'. Use one of: $($JarvisProfiles -join ', ')."
+}
 
 function Get-JarvisRepositoryRoot {
     $current = Split-Path -Parent $PSCommandPath
@@ -175,17 +179,21 @@ function Find-JarvisMatches {
     foreach ($item in $SymptomText) {
         if ($item) {
             $terms += $item.ToLowerInvariant()
+            $terms += @($item -split '\W+' | Where-Object { $_ } | ForEach-Object { $_.ToLowerInvariant() })
         }
     }
+    $terms = @($terms | Select-Object -Unique)
     if ($ProfileName -and $ProfileName -ne 'General') {
         $terms += $ProfileName.ToLowerInvariant()
     }
 
     $scored = foreach ($tool in $Tools) {
         $score = 0
-        if (($ProfileName -eq 'General' -and $tool.Area -eq 'General') -or
-            ($ProfileName -ne 'General' -and $tool.Area -eq $ProfileName)) {
+        if (($ProfileName -eq 'General' -and $tool.Area -eq 'General') -or ($ProfileName -ne 'General' -and $tool.Area -eq $ProfileName)) {
             $score += 2
+        }
+        elseif ($ProfileName -ne 'General' -and $tool.Area -eq 'General') {
+            $score += 1
         }
 
         foreach ($term in $terms) {
@@ -352,6 +360,7 @@ function Export-JarvisPlan {
 function Start-JarvisInteractive {
     param(
         [Parameter(Mandatory = $true)] [object[]]$Tools,
+        [Parameter(Mandatory = $true)] [string[]]$Profiles,
         [switch]$WithCommands,
         [ValidateRange(1, 20)]
         [int]$Limit = 5
@@ -370,7 +379,7 @@ function Start-JarvisInteractive {
         if (-not $profileText) {
             $profileText = 'General'
         }
-        if (@('General', 'Network', 'Domain', 'Performance', 'Security', 'Storage') -notcontains $profileText) {
+        if ($Profiles -notcontains $profileText) {
             Write-Warning 'Unknown profile; using General.'
             $profileText = 'General'
         }
@@ -388,7 +397,7 @@ switch ($Mode) {
         $catalog | Sort-Object Area, Name | Select-Object Name, Area, Available, RequiresAdmin, RelativePath, UseCase | Format-Table -AutoSize
     }
     'Interactive' {
-        Start-JarvisInteractive -Tools $catalog -WithCommands:$IncludeCommands -Limit $MaxRecommendations
+        Start-JarvisInteractive -Tools $catalog -Profiles $JarvisProfiles -WithCommands:$IncludeCommands -Limit $MaxRecommendations
     }
     default {
         $symptomsForPlan = @($Symptom)
